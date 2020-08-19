@@ -36,9 +36,13 @@
             v-if="node.level == 1"
             icon="el-icon-plus"
             size="small"
-            @click="handleShowAddLesson()"
+            @click="handleShowAddLesson(data)"
           >添加课时</el-button>
-          <el-button v-if="node.level == 2" size="small" @click.stop="handleEditLesson(data)">编辑</el-button>
+          <el-button
+            v-if="node.level == 2"
+            size="small"
+            @click.stop="handleEditLesson(data,node)"
+          >编辑</el-button>
         </span>
       </div>
     </el-tree>
@@ -125,15 +129,15 @@
           <el-input v-model="addLessonForm.duration" type="number"></el-input>
           <template slot="append">请输入数字，单位分钟</template>
         </el-form-item>
-        <el-form-item label="是否开放试听" prop="is_free">
+        <!-- <el-form-item label="是否开放试听" prop="is_free">
           <el-radio-group v-model="addLessonForm.is_free" size="mini" >
             <el-radio label="0" border>否</el-radio>
             <el-radio label="1" border>是</el-radio>
           </el-radio-group>
-        </el-form-item>
-<!-- <el-form-item label="是否开放试听" prop="is_free">
+        </el-form-item>-->
+        <el-form-item label="是否开放试听" prop="is_free">
           <el-switch v-model="addLessonForm.is_free" :active-value="0" :inactive-value="1"></el-switch>
-        </el-form-item> -->
+        </el-form-item>
         <el-form-item label="课时排序" prop="orderNum">
           <el-input v-model="addLessonForm.orderNum" type="number">
             <template slot="append">数字控制排序，数字越大越靠后</template>
@@ -174,7 +178,7 @@ export default {
       section_name: "",
       theme: "",
       duration: 0,
-      is_free:0,
+      is_free: 0,
       order_num: 0
     };
 
@@ -242,6 +246,8 @@ export default {
           //将数据保存到表单对象中
           this.addSectionForm.course_id = res.data.id;
           this.addSectionForm.course_name = res.data.course_name;
+          this.addLessonForm.course_id = res.data.id;
+          this.addLessonForm.course_name = res.data.course_name;
         })
         .catch(error => {
           this.loading = false;
@@ -334,67 +340,34 @@ export default {
     },
 
     //方法8: 显示添加课时表单,回显章节信息
-   handleShowAddLesson() {
-      alert("点击确定");
-      this.addLessonForm = {
-        id: this.addLessonForm.id,
-        course_id: this.addSectionForm.course_id,
-        course_name: this.addSectionForm.course_name,
-        section_id: this.addSectionForm.section_id,
-        section_name: this.addSectionForm.section_name,
-        theme: this.addLessonForm.theme,
-        duration: this.addLessonForm.duration,
-        is_free: this.addLessonForm.is_free.toString(),
-        orderNum: this.addLessonForm.orderNum
-      };
+    handleShowAddLesson(section) {
+      //保证添加课时的时候，传递的参数中没有id
+      this.addLessonForm.id = undefined;
+      //回显章节名称（课程名在页面初始化的时候就保存好了）
+      this.addLessonForm.section_id = section.id;
+      this.addLessonForm.section_name = section.section_name;
       //显示表单
       this.showAddLesson = true;
-      // 保存章节id 与名称 到课时表单对象
-      // this.addLessonForm.section_id = section.id;
-      // this.addLessonForm.section_name = section.section_name;
-      // this.showAddLesson = true; //显示课时对话框
     },
 
     //方法9: 修改课时回显方法
-    handleEditLesson(section) {
-      Object.assign(this.addLessonForm, section);
+    handleEditLesson(lesson, node) {
+      Object.assign(this.addLessonForm, lesson);
+      this.addLessonForm.section_name = node.parent.data.section_name;
       this.showAddLesson = true;
     },
 
-    //方法10: 加载课时
-    // loadLesson(id) {
-    //   this.loading = true;
-    //   axios
-    //     .get("/courseContent", {
-    //       params: {
-    //         methodName: "findCourseLessonById",
-    //         id: id
-    //       }
-    //     })
-    //     .then(resp => {
-    //       //获取课时数据,保存
-    //       this.lesson = resp.data;
-    //       console.log(resp.data.toString());
-    //       this.loading = false;
-    //     })
-    //     .catch(error => {
-    //       this.loading = false;
-    //       this.$message.error("数据获取失败! ! !");
-    //     });
-    // },
-
-    //方法11: 添加&修改课时操作
+    //方法10: 添加&修改课时操作
     handleAddLesson() {
-      alert("点击确定");
       axios
-      .get("/courseContent", {
+        .get("/courseContent", {
           params: {
             methodName: "saveOrUpdateCourseLesson",
-             id: this.addLessonForm.id,
-            course_id: this.addSectionForm.course_id,
-            course_name: this.addSectionForm.course_name,
-            section_id: this.addSectionForm.section_id,
-            section_name: this.addSectionForm.section_name,
+            id: this.addLessonForm.id,
+            course_id: this.addLessonForm.course_id,
+            course_name: this.addLessonForm.course_name,
+            section_id: this.addLessonForm.section_id,
+            section_name: this.addLessonForm.section_name,
             theme: this.addLessonForm.theme,
             duration: this.addLessonForm.duration,
             is_free: this.addLessonForm.is_free,
@@ -405,6 +378,13 @@ export default {
           this.showAddLesson = false;
           //重新加载列表
           return this.loadChildren(this.addSectionForm.course_id);
+        })
+        .then(() => {
+          //重置表单
+          this.addLessonForm.theme = "";
+          this.addLessonForm.duration = "";
+          this.addLessonForm.is_free = "";
+          this.addLessonForm.orderNum = 0;
         })
         .catch(error => {
           this.loading = false;
